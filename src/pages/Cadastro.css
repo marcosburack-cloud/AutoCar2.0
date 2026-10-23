@@ -1,0 +1,86 @@
+
+* {
+  box-sizing: border-box;
+}
+
+.cadastro-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+}
+
+.cadastro-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 32px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 20%);
+}
+
+.cadastro-card h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.cadastro-card p {
+  margin-bottom: 28px;
+  color: #94a3b8;
+}
+
+.cadastro-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cadastro-form label {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.cadastro-form input {
+  width: 100%;
+  padding: 12px;
+  color: #f8fafc;
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  outline: none;
+}
+
+.cadastro-form input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgb(56 189 248 / 15%);
+}
+
+.cadastro-form button {
+  margin-top: 20px;
+  padding: 13px;
+  color: #082f49;
+  background: #38bdf8;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cadastro-form button:hover {
+  background: #7dd3fc;
+}
+.mensagem-erro {
+  color: #fca5a5;
+  background: #450a0a;
+  border: 1px solid #991b1b;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
