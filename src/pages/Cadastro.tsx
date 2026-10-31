@@ -63,47 +63,64 @@ function Cadastro() {
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
-  async function handleCadastro(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-    setErro('');
+  //CADASTRO
+async function handleCadastro(
+  event: React.FormEvent<HTMLFormElement>
+) {
+  event.preventDefault();
+  setErro('');
 
-    if (!validarCPF(cpf)) {
-      setErro('CPF inválido. Confira os números digitados.');
-      return;
-    }
-
-    if (senha !== confirmarSenha) {
-      setErro('As senhas não coincidem.');
-      return;
-    }
-
-    setCarregando(true);
-
-    try {
-      await cadastrarUsuario({
-        nome,
-        email,
-        senha,
-        cpf: cpf.replace(/\D/g, ''),
-      });
-
-      navegar('/login');
-    } catch (error) {
-      setErro(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível realizar o cadastro.'
-      );
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        setErro('Digite um e-mail válido.');
-         return;
-    }
-    } finally {
-      setCarregando(false);
-    }
+  // Validar e-mail
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    setErro('Digite um e-mail válido.');
+    return;
   }
+
+  // Validar CPF
+  if (!validarCPF(cpf)) {
+    setErro('CPF inválido. Confira os números digitados.');
+    return;
+  }
+
+  // Validar confirmação de senha
+  if (senha !== confirmarSenha) {
+    setErro('As senhas não coincidem.');
+    return;
+  }
+
+  // Validar nível de senha conforme o back-end
+  const senhaForte =
+    /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+  if (!senhaForte.test(senha)) {
+    setErro(
+      'A senha precisa ter 8 caracteres, uma letra maiúscula, um número e um caractere especial.'
+    );
+    return;
+  }
+
+  setCarregando(true);
+
+  try {
+    await cadastrarUsuario({
+      nome,
+      email: email.trim(),
+      senha,
+      cpf: cpf.replace(/\D/g, ''),
+    });
+
+    navegar('/login');
+  } catch (error) {
+    setErro(
+      error instanceof Error
+        ? error.message
+        : 'Não foi possível realizar o cadastro.'
+    );
+  } finally {
+    setCarregando(false);
+  }
+}
+
 
   return (
     <main className="cadastro-container">
