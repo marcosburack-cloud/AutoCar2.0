@@ -1,21 +1,39 @@
-
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Cadastro from './pages/Cadastro.tsx';
-import Login from './pages/Login.tsx';
-import Dashboard from './pages/Dashboard.tsx';
+import Cadastro from './pages/Cadastro';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Perfil from './pages/Perfil';
+import Gerenciar from './pages/Gerenciar';
+import FormRegistro from './pages/FormRegistro';
+import ProtectedRoute from './components/ProtectedRoute';
+import AppLayout from './components/AppLayout';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+function Entrada() {
+  const { token } = useAuth();
+  return <Navigate to={token ? '/dashboard' : '/login'} replace />;
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/cadastro" element={<Cadastro />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Entrada />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/cadastro" element={<Cadastro />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/perfil" element={<Perfil />} />
+              <Route path="/gerenciar/:recurso" element={<Gerenciar />} />
+              <Route path="/gerenciar/:recurso/:id" element={<FormRegistro />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<Entrada />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
-
 export default App;

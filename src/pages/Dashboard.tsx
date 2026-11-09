@@ -1,155 +1,76 @@
-
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { buscarAgendamentos, buscarIndicadores, type Agendamento, type IndicadoresDashboard } from '../services/api';
 import './Dashboard.css';
 
-function Dashboard() {
-  const navegar = useNavigate();
-  const [nome, setNome] = useState('Usuário');
+export default function Dashboard() {
+  const { usuario, token } = useAuth();
+  const [indicadores, setIndicadores] = useState<IndicadoresDashboard | null>(null);
+  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
+  const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    const usuarioSalvo = localStorage.getItem('usuario');
-    const token = localStorage.getItem('token');
+    if (!token) return;
+    let ativo = true;
+    Promise.all([buscarIndicadores(token), buscarAgendamentos(token)])
+      .then(([resumo, lista]) => {
+        if (!ativo) return;
+        setIndicadores(resumo);
+        setAgendamentos(lista);
+      })
+      .catch((error: unknown) => {
+        if (ativo) setErro(error instanceof Error ? error.message : 'Erro ao carregar os dados.');
+      })
+      .finally(() => { if (ativo) setCarregando(false); });
+    return () => { ativo = false; };
+  }, [token]);
 
-    if (!token) {
-      navegar('/login');
-      return;
-    }
-
-    if (usuarioSalvo) {
-      try {
-        const usuario = JSON.parse(usuarioSalvo);
-        setNome(usuario.nome || 'Usuário');
-      } catch {
-        localStorage.removeItem('usuario');
-      }
-    }
-  }, [navegar]);
-
-  function sair() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-    navegar('/login');
-  }
-
+  const cards = [
+    { icone: '▣', nome: 'Agendamentos', classe: 'blue', valor: indicadores?.agendamentos },
+    { icone: '⚙', nome: 'Serviços cadastrados', classe: 'cyan', valor: indicadores?.servicos },
+    { icone: '▤', nome: 'Produtos cadastrados', classe: 'purple', valor: indicadores?.produtos },
+  ];
   return (
-    <div className="dashboard">
-      <aside className="sidebar">
-        <div className="dashboard-brand">
-          <div className="brand-icon">A</div>
-          <h2>AUTO<span>CAR</span></h2>
+    <>
+      <section className="welcome-section">
+        <div><p>Bem-vindo de volta,</p><h2>{usuario?.nome ?? 'Usuário'}!</h2>
+          <span>Informações reais do banco de dados AutoCar.</span></div>
+        <div className="welcome-icon">🚘</div>
+      </section>
+      {erro && <p role="alert" style={{ color: '#b91c1c', margin: '14px 0' }}>{erro}</p>}
+      <section className="dashboard-cards" aria-label="Indicadores do banco de dados">
+        {cards.map(item => <article className="stat-card" key={item.nome}>
+          <div className={`stat-icon ${item.classe}`}>{item.icone}</div>
+          <p>{item.nome}</p><h2>{carregando ? '...' : item.valor ?? '—'}</h2>
+          <span>{carregando ? 'Carregando...' : 'Dados do MySQL'}</span>
+        </article>)}
+      </section>
+      <section className="dashboard-bottom">
+        <div className="dashboard-panel">
+          <h3>Agendamentos cadastrados</h3>
+          <p>Últimos registros do banco de dados.</p>
+          {agendamentos.length ? (
+            <ul style={{ paddingLeft: 20, marginTop: 16 }}>
+              {agendamentos.slice(0, 6).map(a => (
+                <li key={a.id} style={{ marginBottom: 12 }}>
+                  <strong>{a.nome_cliente}</strong> — {a.servico?.nome ?? 'Serviço não informado'}
+                  <div style={{ fontSize: 13, color: '#64748b' }}>
+                    {a.modelo_carro ?? 'Veículo não informado'} · {a.data_agendamento ?? 'Sem data'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="empty-state"><span>▤</span><p>{carregando ? 'Carregando...' : 'Nenhum agendamento disponível.'}</p></div>}
         </div>
-
-        <nav className="sidebar-nav">
-          <p className="nav-label">MENU PRINCIPAL</p>
-
-          <a className="nav-item active" href="/dashboard"> 
-            <span>▦</span> Dashboard
-          </a>
-          <a className="nav-item" href="/agendamentos">
-            <span>▣</span> Agendamentos
-          </a>
-          <a className="nav-item" href="/servicos">
-            <span>⚙</span> Serviços
-          </a>
-          <a className="nav-item" href="/produtos">
-            <span>▤</span> Produtos
-          </a>
-          <a className="nav-item" href="/clientes">
-            <span>♙</span> Clientes
-          </a>
-        </nav>
-
-        <button className="logout-button" onClick={sair}>
-          ↪ Sair da conta
-        </button>
-      </aside>
-
-      <main className="dashboard-main">
-        <header className="dashboard-header">
-          <div>
-            <p className="header-subtitle">VISÃO GERAL</p>
-            <h1>Dashboard</h1>
+        <div className="dashboard-panel"><h3>Acesso rápido</h3><p>Confira os dados da sua conta.</p>
+          <div className="quick-links"><Link className="quick-link" to="/perfil">♙ Visualizar meu perfil</Link>
+            <Link className="quick-link" to="/gerenciar/agendamentos">▣ Gerenciar agendamentos</Link>
+            <Link className="quick-link" to="/gerenciar/produtos">▤ Gerenciar produtos</Link>
           </div>
-
-          <div className="user-info">
-            <div className="user-avatar">{nome.charAt(0).toUpperCase()}</div>
-            <div>
-              <strong>{nome}</strong>
-              <span>Administrador</span>
-            </div>
-          </div>
-        </header>
-
-        <section className="welcome-section">
-          <div>
-            <p>Bem-vindo de volta,</p>
-            <h2>{nome}!</h2>
-            <span>Acompanhe o desempenho da sua gestão automotiva.</span>
-          </div>
-          <div className="welcome-icon">🚘</div>
-        </section>
-
-        <section className="dashboard-cards">
-          <article className="stat-card">
-            <div className="stat-icon blue">▣</div>
-            <p>Agendamentos</p>
-            <h2>--</h2>
-            <span>Dados em integração</span>
-          </article>
-
-          <article className="stat-card">
-            <div className="stat-icon cyan">⚙</div>
-            <p>Serviços realizados</p>
-            <h2>--</h2>
-            <span>Dados em integração</span>
-          </article>
-
-          <article className="stat-card">
-            <div className="stat-icon purple">▤</div>
-            <p>Produtos cadastrados</p>
-            <h2>--</h2>
-            <span>Dados em integração</span>
-          </article>
-
-          <article className="stat-card">
-            <div className="stat-icon green">R$</div>
-            <p>Faturamento</p>
-            <h2>--</h2>
-            <span>Dados em integração</span>
-          </article>
-        </section>
-
-        <section className="dashboard-bottom">
-          <div className="dashboard-panel">
-            <h3>Atividade recente</h3>
-            <p>Os agendamentos e serviços aparecerão aqui.</p>
-            <div className="empty-state">
-              <span>▤</span>
-              <p>Nenhuma atividade carregada ainda.</p>
-            </div>
-          </div>
-
-          <div className="dashboard-panel">
-            <h3>Acesso rápido</h3>
-            <p>Gerencie as principais áreas do AutoCar.</p>
-
-            <div className="quick-links">
-              <button onClick={() => navegar('/agendamentos')}>
-                + Novo agendamento
-              </button>
-              <button onClick={() => navegar('/produtos')}>
-                + Ver produtos
-              </button>
-              <button onClick={() => navegar('/servicos')}>
-                + Ver serviços
-              </button>
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
+        </div>
+      </section>
+    </>
   );
 }
-
-export default Dashboard;

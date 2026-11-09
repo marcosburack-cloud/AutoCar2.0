@@ -25,7 +25,7 @@ export async function cadastrarUsuario(dados: {
 
   const texto = await resposta.text();
 
-  let resultado: any = null;
+  let resultado: unknown = null;
 
   try {
     resultado = texto ? JSON.parse(texto) : null;
@@ -34,12 +34,12 @@ export async function cadastrarUsuario(dados: {
   }
 
   if (!resposta.ok) {
+    const erroApi = resultado && typeof resultado === 'object' ? resultado as Record<string, unknown> : null;
     const mensagem =
-      resultado?.message ||
-      resultado?.error ||
-      resultado?.erro ||
+      (typeof erroApi?.message === 'string' && erroApi.message) ||
+      (typeof erroApi?.error === 'string' && erroApi.error) ||
+      (typeof erroApi?.erro === 'string' && erroApi.erro) ||
       (typeof resultado === 'string' ? resultado : null) ||
-      texto ||
       'Não foi possível realizar o cadastro.';
 
     throw new Error(mensagem);
@@ -109,3 +109,79 @@ export async function loginUsuario(dados: {
 
   return resultado as RespostaLogin;
 }
+export interface IndicadoresDashboard {
+  agendamentos: number;
+  servicos: number;
+  produtos: number;
+}
+export interface Agendamento {
+  id: number;
+  nome_cliente: string;
+  modelo_carro: string | null;
+  data_agendamento: string | null;
+  hora_agendamento: string | null;
+  servico: { nome: string; preco: string } | null;
+}
+
+async function buscarAutenticado<T>(caminho: string, token: string): Promise<T> {
+  let resposta: Response;
+  try {
+    resposta = await fetch(`${API_URL}${caminho}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Error('Não foi possível conectar ao servidor.');
+  }
+  const dados: unknown = await resposta.json().catch(() => null);
+  if (!resposta.ok) {
+    const mensagem = dados && typeof dados === 'object' && 'erro' in dados && typeof dados.erro === 'string'
+      ? dados.erro : 'Erro ao buscar dados no servidor.';
+    throw new Error(mensagem);
+  }
+  return dados as T;
+}
+export function buscarIndicadores(token: string) {
+  return buscarAutenticado<IndicadoresDashboard>('/dashboard', token);
+}
+export function buscarAgendamentos(token: string) {
+  return buscarAutenticado<Agendamento[]>('/agendamentos', token);
+}
+export interface ItemCatalogo { id: number; nome: string; descricao: string | null; preco: string | null }
+export function buscarProdutos(token: string) {
+  return buscarAutenticado<ItemCatalogo[]>('/produtos', token);
+}
+export function buscarServicos(token: string) {
+  return buscarAutenticado<ItemCatalogo[]>('/servicos', token);
+}
+
+export type Recurso = 'produtos' | 'servicos' | 'agendamentos' | 'clientes';
+export type Registro = Record<string, string | number | null> & { id: number };
+export interface ListaPaginada { itens: Registro[]; total: number; pagina: number; paginas: number }
+
+export async function requisicaoAutenticada<T>(caminho: string, token: string, metodo = 'GET', corpo?: object): Promise<T> {
+  let resposta: Response;
+  try {
+    resposta = await fetch(`${API_URL}${caminho}`, {
+      method: metodo,
+      headers: { Authorization: `Bearer ${token}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
+      ...(corpo ? { body: JSON.stringify(corpo) } : {}),
+    });
+  } catch { throw new Error('Não foi possível conectar ao servidor.'); }
+  const dados: unknown = resposta.status === 204 ? null : await resposta.json().catch(() => null);
+  if (!resposta.ok) {
+    const mensagem = dados && typeof dados === 'object' && 'erro' in dados && typeof dados.erro === 'string'
+      ? dados.erro : 'Não foi possível concluir a operação.';
+    throw new Error(mensagem);
+  }
+  return dados as T;
+}
+export const listarRegistros = (recurso: Recurso, pagina: number, token: string) =>
+  requisicaoAutenticada<ListaPaginada>(`/gerenciar/${recurso}?pagina=${pagina}&limite=10`, token);
+export const consultarRegistro = (recurso: Recurso, id: string, token: string) =>
+  requisicaoAutenticada<Registro>(`/gerenciar/${recurso}/${id}`, token);
+export const salvarRegistro = (recurso: Recurso, dados: Record<string, unknown>, token: string, id?: string) =>
+  requisicaoAutenticada<Registro>(`/gerenciar/${recurso}${id ? `/${id}` : ''}`, token, id ? 'PUT' : 'POST', dados);
+export const excluirRegistro = (recurso: Recurso, id: number, token: string) =>
+  requisicaoAutenticada<null>(`/gerenciar/${recurso}/${id}`, token, 'DELETE');
+export const editarPerfil = (dados: { nome: string; cpf: string; senha?: string }, token: string) =>
+  requisicaoAutenticada<{ usuario: Usuario }>('/me', token, 'PUT', dados);

@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUsuario } from '../services/api';
 import './Login.css';
+import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const navegar = useNavigate();
+  const { entrar } = useAuth();
 
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -34,8 +36,7 @@ function Login() {
         senha,
       });
 
-      localStorage.setItem('token', resultado.token);
-      localStorage.setItem('usuario', JSON.stringify(resultado.usuario));
+      entrar({ token: resultado.token, usuario: resultado.usuario });
 
       navegar('/dashboard');
     } catch (error) {
