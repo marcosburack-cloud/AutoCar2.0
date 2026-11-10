@@ -25,3 +25,5 @@ dist-ssr
 .env
 .env.*
 !.env.example
+# Docker: exemplo sem credenciais reais
+!.env.docker.example

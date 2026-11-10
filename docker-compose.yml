@@ -1,0 +1,60 @@
+# AutoCar2.0: apenas o Nginx publica uma porta no computador.
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-autocar}
+      MARIADB_USER: ${DB_USER:-autocar_app}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env da raiz}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD no .env da raiz}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/autocar-original.sql:/docker-entrypoint-initdb.d/01-autocar.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+
+  backend:
+    build:
+      context: ./Back-end/server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-autocar}
+      DB_USER: ${DB_USER:-autocar_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env da raiz}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env da raiz}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+volumes:
+  mysql_data:
+
+networks:
+  internal:
+    driver: bridge
