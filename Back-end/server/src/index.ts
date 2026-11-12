@@ -27,6 +27,7 @@ function mensagemErro(erro: unknown): string {
   return erro instanceof Error ? erro.message : "Erro inesperado.";
 }
 
+// Cadastro de Usuário
 app.post("/usuarios", async (req: Request, res: Response): Promise<void> => {
   try {
     const { nome, email, senha, cpf } = req.body;
@@ -35,7 +36,6 @@ app.post("/usuarios", async (req: Request, res: Response): Promise<void> => {
     }
     const validado = new Usuario(nome, email, senha, cpf);
     const senhaHash = await bcrypt.hash(validado.senha, 12);
-    // O banco impõe unicidade para evitar duplicações até em requisições simultâneas.
     await UsuarioDB.create({ nome: validado.nome, email: validado.email, cpf: validado.cpf, senha_hash: senhaHash });
     let boasVindasIA = "Usuário cadastrado com sucesso!";
     if (ai) {
@@ -54,19 +54,23 @@ app.post("/usuarios", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// Autenticação
 app.post("/login", async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, senha } = req.body;
     if (typeof email !== "string" || typeof senha !== "string" || !email || !senha) {
       res.status(400).json({ erro: "E-mail e senha são obrigatórios." }); return;
     }
+    // Regex 
     if (!Usuario.validarEmail(email.trim())) {
       res.status(400).json({ erro: "Formato de e-mail inválido." }); return;
     }
+    // Usuário existente
     const usuario = await UsuarioDB.findOne({ where: { email: email.toLowerCase().trim() } });
     if (!usuario || !(await bcrypt.compare(senha, usuario.senha_hash))) {
       res.status(401).json({ erro: "E-mail ou senha incorretos." }); return;
     }
+    // Retorno JWT
     const token = jwt.sign({ sub: String(usuario.id), email: usuario.email }, jwtSecret, { expiresIn: "8h" });
     res.json({ mensagem: "Login realizado com sucesso!", token, usuario: {
       nome: usuario.nome, email: usuario.email, cpf: usuario.cpf,
@@ -92,7 +96,7 @@ app.get("/me", autenticar, async (req: AuthRequest, res: Response) => {
   res.json({ usuario: { nome: usuario.nome, email: usuario.email, cpf: usuario.cpf } });
 });
 
-// Edição do próprio perfil: a identidade vem exclusivamente do JWT.
+// Edição de Usuário
 app.put("/me", autenticar, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const usuario = await UsuarioDB.findByPk(req.usuarioId);
@@ -120,7 +124,7 @@ app.put("/me", autenticar, async (req: AuthRequest, res: Response): Promise<void
   }
 });
 
-// Quatro recursos de domínio com CRUD completo e paginação.
+// Quatro recursos de domínio com CRUD
 type Recurso = "produtos" | "servicos" | "agendamentos" | "clientes";
 const recursos: Record<Recurso, ModelStatic<Model>> = {
   produtos: ProdutoDB, servicos: ServicoDB, agendamentos: AgendamentoDB, clientes: ClienteDB,
